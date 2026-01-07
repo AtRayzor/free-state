@@ -1,0 +1,71 @@
+{
+  "name": "reactive-store",
+  "version": "0.0.1-experimental",
+  "description": "A lightweight, type-safe, and performant reactive store for React applications.",
+  "main": "./dist/index.mjs",
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "test": "vitest --watch"
+  },
+  "keywords": [
+    "reactive",
+    "store",
+    "react",
+    "typescript",
+    "reactive programming",
+    "reactive programming library",
+    "reactive programming framework",
+    "reactive programming tool",
+    "reactive programming library for react",
+    "reactive programming framework for react",
+    "reactive programming tool for react",
+    "reactive programming library for react applications",
+    "reactive programming framework for react applications",
+    "reactive programming tool for react applications"
+  ],
+  "author": "Timothy Ray",
+  "license": "MIT-0",
+  "type": "module",
+  "packageManager": "pnpm@10.27.0",
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "peerDependencies": {
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "tslib": "^2.8.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.2",
+    "@testing-library/react": "^16.3.1",
+    "@types/node": "^25.0.3",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@typescript-eslint/eslint-plugin": "^8.50.0",
+    "@typescript-eslint/parser": "^8.50.0",
+    "@vitejs/plugin-react": "^5.1.2",
+    "eslint": "^9.39.2",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.4.26",
+    "eslint-typescript": "^1.1.0",
+    "globals": "^16.5.0",
+    "jsdom": "^27.3.0",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "tsdown": "^0.18.0",
+    "typescript": "^5.9.3",
+    "tslib": "^2.8.1",
+    "@vitest/browser-playwright": "^4.0.16",
+    "vitest": "^4.0.16",
+    "vite-tsconfig-paths": "^6.0.3",
+    "reflect-metadata": "^0.2.2"
+  },
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.mts"
+}
