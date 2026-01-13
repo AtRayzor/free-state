@@ -1,178 +1,186 @@
-# free-state
+# Free State
 
-A tiny, Proxy-backed reactive store for TypeScript classes, plus a React hook powered by `useSyncExternalStore`.
+A lightweight, flexible reactive state management library for TypeScript and React applications.
 
-This package exports:
+## 📦 Packages
 
-- `store` — a class decorator / higher-order class that makes a class instance behave like a React-compatible external store
-- `useReactiveStore` — a React hook that reads the store via `useSyncExternalStore`
-- `Store<T>` — the minimal external-store interface (`subscribe` + `getSnapshot`)
+This monorepo contains three packages:
 
-> Status: **experimental** (`0.0.1-experimental`). APIs and behavior may change.
+### [`free-state`](./packages/free-state)
 
-## Installation
+The core reactive state management library. Provides reactive stores, event systems, and derived state.
+
+**Key Features:**
+- 🎯 **Simple API**: Easy-to-use reactive stores with minimal boilerplate
+- 🔄 **Reactive Updates**: Automatic subscriber notifications on state changes
+- 📸 **Immutable Snapshots**: Safe, readonly views of state
+- ⚡ **Derived State**: Computed values that automatically update when dependencies change
+- 🎪 **Event System**: Built-in event emitter for decoupled communication
+- 🪶 **Lightweight**: Minimal dependencies and small bundle size
+
+### [`free-state-react`](./packages/free-state-react)
+
+React hooks and integrations for `free-state`.
+
+**Key Features:**
+- ⚛️ **React Integration**: Seamless integration with React's concurrent features
+- 🪝 **Custom Hooks**: `useStore` hook for reactive state in components
+- 🎯 **TypeScript Support**: Full type safety for your React components
+- 🔄 **Auto Re-renders**: Components automatically re-render when state changes
+
+### [`@free-state/ts-decorators`](./packages/ts-decorators)
+
+TypeScript decorators for class-based reactive state management.
+
+**Key Features:**
+- 🎨 **Decorator Syntax**: Transform classes into reactive stores with `@store`
+- 📦 **Class-Based API**: Object-oriented approach to state management
+- 🔗 **Store Extraction**: Utilities to access underlying store instances
+
+## 🚀 Quick Start
+
+### Installation
 
 ```bash
-pnpm attach reactive-store
-# or
-npm i reactive-store
-# or
-yarn attach reactive-store
+# Core library
+npm install free-state
+
+# React hooks
+npm install free-state free-state-react
+
+# TypeScript decorators
+npm install free-state @free-state/ts-decorators
 ```
 
-### Peer dependencies
+### Basic Usage
 
-This library expects these to be provided by your app:
+#### Core Store
 
-- `react`
-- `react-dom`
-- `tslib`
+```typescript
+import { createStore } from 'free-state';
 
-## The core idea
+// Create a reactive store
+const counterStore = createStore({ count: 0 });
 
-`store` wraps a class instance in a `Proxy`. Any *property assignment* on the instance triggers:
-
-1. a new **snapshot** object to be created (a shallow copy of the instance’s enumerable props)
-2. all subscribers to be notified
-
-React reads that snapshot via `getSnapshot()` and re-renders subscribers via `useSyncExternalStore`.
-
-## API
-
-### `Store<T>`
-
-Minimal interface used by React external store integrations:
-
-- `subscribe(callback: () => void): () => void`
-- `getSnapshot(): T`
-
-### `store(ctor)`
-
-A class decorator / higher-order class.
-
-- Input: a class constructor
-- Output: a new class that extends your class and implements `Store<any>`
-
-You can use it either as a decorator (if you have TS decorators enabled), or as a wrapper function.
-
-### `useReactiveStore(store)`
-
-A React hook:
-
-```ts
-useSyncExternalStore(store.subscribe, store.getSnapshot)
-```
-
-It returns the current snapshot (the object returned by `getSnapshot()`).
-
-## Usage (vanilla / TypeScript)
-
-### Option A: wrapper function (no decorators required)
-
-```ts
-import { store } from "reactive-store";
-
-class Counter {
-  count = 0;
-
-  inc() {
-    this.count += 1;
-  }
-}
-
-const ReactiveCounter = store(Counter);
-const counter = new ReactiveCounter();
-
-const unsubscribe = counter.subscribe(() => {
-  console.log("count =", counter.getSnapshot().count);
+// Subscribe to changes
+const unsubscribe = counterStore.subscribe(() => {
+  console.log('Count:', counterStore.getSnapshot().count);
 });
 
-counter.inc();
-counter.inc();
+// Update state
+const proxy = counterStore.getProxy();
+proxy.count = 1; // Logs: "Count: 1"
 
-unsubscribe();
+// Batch updates
+counterStore.transform(state => ({ ...state, count: state.count + 5 }));
+
+// Derived state
+const doubled = counterStore.derive(state => state.count * 2);
+console.log(doubled.getValue()); // 12
 ```
 
-### Option B: decorator syntax (`@store`)
+#### React Hook
 
-If your project supports decorators, you can write:
+```typescript
+import { createStore } from 'free-state';
+import { useStore } from 'free-state-react';
 
-```ts
-import { store } from "reactive-store";
+const appStore = createStore({ count: 0 });
 
-@store
-class Counter {
-  count = 0;
-
-  inc() {
-    this.count += 1;
-  }
-}
-
-const counter = new Counter();
-counter.subscribe(() => console.log(counter.getSnapshot().count));
-counter.inc();
-```
-
-> Note: decorator support depends on your TypeScript/Babel setup.
-
-## Usage with React
-
-`useReactiveStore` gives you the *snapshot* for rendering. Call methods on the **store instance**, not the snapshot.
-
-```tsx
-import * as React from "react";
-import { store, useReactiveStore } from "reactive-store";
-
-class Counter {
-  count = 0;
-  inc() {
-    this.count += 1;
-  }
-  dec() {
-    this.count -= 1;
-  }
-}
-
-const ReactiveCounter = store(Counter);
-const counter = new ReactiveCounter();
-
-export function CounterView() {
-  const state = useReactiveStore(counter);
-
+function Counter() {
+  const state = useStore(appStore);
+  
   return (
     <div>
-      <div>Count: {state.count}</div>
-      <button onClick={() => counter.dec()}>-</button>
-      <button onClick={() => counter.inc()}>+</button>
+      <p>Count: {state.count}</p>
+      <button onClick={() => state.count++}>Increment</button>
     </div>
   );
 }
 ```
 
-## Caveats / current behavior
+#### TypeScript Decorators
 
-This README describes the behavior of the current implementation in `src/lib/reactive-store.ts`.
+```typescript
+import { store } from '@free-state/ts-decorators';
+import { useStore } from 'free-state-react';
 
-- **Snapshots are shallow.** They’re created via `{ ...instance }`, so only enumerable *own* properties are copied.
-- **Methods won’t appear on the snapshot.** Class methods live on the prototype, so they’re not part of `{ ...instance }`.
-  - In React, render from the snapshot but invoke actions on the store instance.
-- **Updates are triggered by assignments.** The notification happens in the `Proxy` `set` trap.
-  - If you mutate nested objects without reassigning, you may not get an update.
-- **Instances are proxied.** `store` returns a `Proxy` from the constructor, which can be surprising for some meta-programming patterns.
+@store
+class CounterState {
+  count = 0;
+}
 
-## Contributing / local development
+const counterState = new CounterState();
 
-Scripts (see `package.json`):
-
-```bash
-pnpm install
-pnpm build
-pnpm dev
-pnpm test
+function Counter() {
+  useStore(counterState);
+  
+  return (
+    <div>
+      <p>Count: {counterState.count}</p>
+      <button onClick={() => counterState.count++}>Increment</button>
+    </div>
+  );
+}
 ```
 
-## License
+## 🏗️ Development
 
-MIT-0. See `LICENSE.txt`.
+This project uses pnpm workspaces for monorepo management.
+
+### Prerequisites
+
+- Node.js 18+
+- pnpm 10.27.0+
+
+### Setup
+
+```bash
+# Install dependencies
+pnpm install
+
+# Build all packages
+pnpm build
+
+# Run tests
+pnpm test
+
+# Development mode (watch)
+pnpm dev
+```
+
+### Project Structure
+
+```
+state-lib/
+├── packages/
+│   ├── free-state/          # Core reactive state library
+│   ├── free-state-react/    # React hooks and integrations
+│   └── ts-decorators/       # TypeScript decorator utilities
+├── package.json             # Root workspace configuration
+└── tsconfig.json           # Shared TypeScript config
+```
+
+## 📝 License
+
+MIT No Attribution (MIT-0) - See [LICENSE.txt](./LICENSE.txt) for details.
+
+## 👤 Author
+
+**Timothy Ray**
+
+- GitHub: [@AtRayzor](https://github.com/AtRayzor)
+- Repository: [free-state](https://github.com/AtRayzor/free-state)
+
+## 🐛 Issues
+
+Found a bug or have a feature request? Please open an issue on the [GitHub issue tracker](https://github.com/AtRayzor/free-state/issues).
+
+## 🤝 Contributing
+
+Contributions are welcome! This project is in active development (currently in alpha).
+
+---
+
+Built with ❤️ using TypeScript and React
 
