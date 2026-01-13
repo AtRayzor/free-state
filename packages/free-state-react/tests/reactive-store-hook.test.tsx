@@ -1,16 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { ReactiveStore, useReactiveStore } from "reactive-storage";
 import { act, render } from "@testing-library/react";
+import {createStore} from "free-state";
+import {useStore} from "../lib/reactive-store-hook";
 
-@ReactiveStore
-class TestState {
-  constructor(public count: number = 0) {}
-}
-
-const testState = new TestState();
+const testStore = createStore({ count: 0 });
 
 function TestComponent() {
-  const state = useReactiveStore(testState);
+  const state = useStore(testStore);
 
   return (
     <div>
@@ -22,7 +18,7 @@ function TestComponent() {
   );
 }
 
-describe("Reactive Store Hook Tests", () => {
+describe("Reactive store Hook Tests", () => {
   it("should update the ui when count changes", async () => {
     render(<TestComponent />, {
       reactStrictMode: true,

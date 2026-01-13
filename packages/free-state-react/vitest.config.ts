@@ -1,7 +1,8 @@
 import { defineConfig } from "vitest/config";
+import { resolve } from "node:path";
 import tsConfigPaths from "vite-tsconfig-paths";
 import { playwright } from "@vitest/browser-playwright";
-import { resolve } from "node:path";
+
 export default defineConfig({
   test: {
     globals: true,
@@ -12,8 +13,11 @@ export default defineConfig({
       provider: playwright(),
       instances: [{ browser: "chromium" }],
     },
-    include: ["tests/**/*.test.ts"],
+    include: ["tests/**/*.test.ts", "tests/**/*.test.tsx"],
     root: resolve(__dirname),
+  },
+  server: {
+    fs: { allow: [resolve(__dirname, "..", "..")] },
   },
   plugins: [tsConfigPaths()],
   build: {

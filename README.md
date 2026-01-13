@@ -4,20 +4,20 @@ A tiny, Proxy-backed reactive store for TypeScript classes, plus a React hook po
 
 This package exports:
 
-- `ReactiveStore` — a class decorator / higher-order class that makes a class instance behave like a React-compatible external store
+- `store` — a class decorator / higher-order class that makes a class instance behave like a React-compatible external store
 - `useReactiveStore` — a React hook that reads the store via `useSyncExternalStore`
-- `ReactiveStoreType<T>` — the minimal external-store interface (`subscribe` + `getSnapshot`)
+- `Store<T>` — the minimal external-store interface (`subscribe` + `getSnapshot`)
 
 > Status: **experimental** (`0.0.1-experimental`). APIs and behavior may change.
 
 ## Installation
 
 ```bash
-pnpm add reactive-store
+pnpm attach reactive-store
 # or
 npm i reactive-store
 # or
-yarn add reactive-store
+yarn attach reactive-store
 ```
 
 ### Peer dependencies
@@ -30,7 +30,7 @@ This library expects these to be provided by your app:
 
 ## The core idea
 
-`ReactiveStore` wraps a class instance in a `Proxy`. Any *property assignment* on the instance triggers:
+`store` wraps a class instance in a `Proxy`. Any *property assignment* on the instance triggers:
 
 1. a new **snapshot** object to be created (a shallow copy of the instance’s enumerable props)
 2. all subscribers to be notified
@@ -39,19 +39,19 @@ React reads that snapshot via `getSnapshot()` and re-renders subscribers via `us
 
 ## API
 
-### `ReactiveStoreType<T>`
+### `Store<T>`
 
 Minimal interface used by React external store integrations:
 
 - `subscribe(callback: () => void): () => void`
 - `getSnapshot(): T`
 
-### `ReactiveStore(ctor)`
+### `store(ctor)`
 
 A class decorator / higher-order class.
 
 - Input: a class constructor
-- Output: a new class that extends your class and implements `ReactiveStoreType<any>`
+- Output: a new class that extends your class and implements `Store<any>`
 
 You can use it either as a decorator (if you have TS decorators enabled), or as a wrapper function.
 
@@ -70,7 +70,7 @@ It returns the current snapshot (the object returned by `getSnapshot()`).
 ### Option A: wrapper function (no decorators required)
 
 ```ts
-import { ReactiveStore } from "reactive-store";
+import { store } from "reactive-store";
 
 class Counter {
   count = 0;
@@ -80,7 +80,7 @@ class Counter {
   }
 }
 
-const ReactiveCounter = ReactiveStore(Counter);
+const ReactiveCounter = store(Counter);
 const counter = new ReactiveCounter();
 
 const unsubscribe = counter.subscribe(() => {
@@ -93,14 +93,14 @@ counter.inc();
 unsubscribe();
 ```
 
-### Option B: decorator syntax (`@ReactiveStore`)
+### Option B: decorator syntax (`@store`)
 
 If your project supports decorators, you can write:
 
 ```ts
-import { ReactiveStore } from "reactive-store";
+import { store } from "reactive-store";
 
-@ReactiveStore
+@store
 class Counter {
   count = 0;
 
@@ -122,7 +122,7 @@ counter.inc();
 
 ```tsx
 import * as React from "react";
-import { ReactiveStore, useReactiveStore } from "reactive-store";
+import { store, useReactiveStore } from "reactive-store";
 
 class Counter {
   count = 0;
@@ -134,7 +134,7 @@ class Counter {
   }
 }
 
-const ReactiveCounter = ReactiveStore(Counter);
+const ReactiveCounter = store(Counter);
 const counter = new ReactiveCounter();
 
 export function CounterView() {
@@ -159,7 +159,7 @@ This README describes the behavior of the current implementation in `src/lib/rea
   - In React, render from the snapshot but invoke actions on the store instance.
 - **Updates are triggered by assignments.** The notification happens in the `Proxy` `set` trap.
   - If you mutate nested objects without reassigning, you may not get an update.
-- **Instances are proxied.** `ReactiveStore` returns a `Proxy` from the constructor, which can be surprising for some meta-programming patterns.
+- **Instances are proxied.** `store` returns a `Proxy` from the constructor, which can be surprising for some meta-programming patterns.
 
 ## Contributing / local development
 
