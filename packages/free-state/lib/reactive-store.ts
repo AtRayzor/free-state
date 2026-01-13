@@ -1,35 +1,5 @@
-import { DerivedState } from "./derived";
-
-/**
- * Minimal interface describing the reactive store surface area expected by
- * React integrations (e.g. via `useSyncExternalStore`).
- *
- * A conforming store must:
- * - let consumers subscribe to change notifications, returning an unsubscribe function
- * - provide a stable snapshot object representing the current state
- *
- * @typeParam T - The shape of the snapshot object exposed to consumers.
- */
-export interface Store<T extends object> {
-  /**
-   * Registers a callback to be invoked whenever the store's state changes.
-   *
-   * Implementations should call the callback after any state mutation that would
-   * change the value returned by `getSnapshot()`.
-   *
-   * @param callback - Function called on store updates.
-   * @returns Cleanup function that unsubscribes the callback.
-   */
-  subscribe(callback: () => void): () => void;
-
-  getProxy(): T;
-
-  getSnapshot(): Readonly<T>;
-
-  transform(transformer: (state: Readonly<T>) => Readonly<T>): void;
-
-  derive<U>(transformer: (state: Readonly<T>) => U): DerivedState<T, U>;
-}
+import {DerivedState} from "./derived";
+import {Store} from "./store";
 
 const internalListenersKey = Symbol("internalListeners");
 const listenersKey = Symbol("listeners");
@@ -81,6 +51,20 @@ function createSetter(instance: any) {
   };
 }
 
+/**
+ * Default implementation of the `Store` interface.
+ *
+ * Internally, `DefaultStore`:
+ * - Maintains an immutable snapshot object (`snapshotKey`) representing the latest committed state.
+ * - Exposes a **mutable proxy** for updates (`proxyKey`). Writing to it performs a copy-on-write update.
+ * - Exposes a **readonly proxy** (`readonlyProxyKey`) for safe reading.
+ *
+ * Notifications:
+ * - "Internal" listeners are intended for derived state so derived values can update first.
+ * - Public listeners are those registered via `subscribe`.
+ *
+ * @typeParam T - The shape of the state object.
+ */
 export class DefaultStore<T extends object> implements Store<T> {
   [deriveStateInstancesKey]: Set<DerivedState<T, any>> = new Set();
   [internalListenersKey]: Set<() => void> = new Set();
@@ -89,10 +73,23 @@ export class DefaultStore<T extends object> implements Store<T> {
   [snapshotKey]: T;
   [proxyKey]: any;
   [readonlyProxyKey]: any;
+
+  /**
+   * Creates a new store initialized with the given state object.
+   *
+   * @param initial - Initial state.
+   */
   constructor(initial: T) {
     updateStore(initial, this, initial);
   }
 
+  /**
+   * Creates a derived state value that tracks this store.
+   *
+   * @typeParam U - The derived value type.
+   * @param transformer - Function to compute the derived value from the current snapshot.
+   * @returns A derived state instance that stays in sync with this store.
+   */
   derive<U>(transformer: (state: Readonly<T>) => U): DerivedState<T, U> {
     const derived = new DerivedState(
       transformer(this[snapshotKey]),
@@ -105,6 +102,16 @@ export class DefaultStore<T extends object> implements Store<T> {
     return derived;
   }
 
+  /**
+   * Applies a transformation to the state in a single atomic update.
+   *
+   * Implementation note:
+   * - Copies the current proxy to a plain object snapshot.
+   * - Applies the transformer.
+   * - Rebuilds proxies and notifies subscribers once.
+   *
+   * @param transformer - Function producing the new state from the current state.
+   */
   public transform(transformer: (state: Readonly<T>) => Readonly<T>) {
     const snapshot = { ...this[proxyKey] } as T;
     const transformed = transformer(snapshot);
@@ -113,11 +120,10 @@ export class DefaultStore<T extends object> implements Store<T> {
   }
 
   /**
-   * Registers a listener that will be called whenever any non-internal property
-   * is assigned on the proxied instance.
+   * Subscribes to store updates.
    *
-   * @param callback - Function invoked after the snapshot is refreshed.
-   * @returns Unsubscribe function to detach the callback.
+   * @param callback - Called after each update.
+   * @returns Unsubscribe function.
    */
   public subscribe = (callback: () => void): (() => void) => {
     this[listenersKey].add(callback);
@@ -127,10 +133,25 @@ export class DefaultStore<T extends object> implements Store<T> {
     };
   };
 
+  /**
+   * Returns the readonly snapshot proxy of the current state.
+   *
+   * @returns Readonly state proxy.
+   */
   public getSnapshot() {
     return this[readonlyProxyKey] as Readonly<T>;
   }
 
+  /**
+   * Returns the mutable proxy of the current state.
+   *
+   * Mutations on this proxy will:
+   * - Create a new underlying snapshot
+   * - Recreate proxies
+   * - Notify subscribers
+   *
+   * @returns Mutable state proxy.
+   */
   public getProxy(): T {
     return this[proxyKey] as T;
   }
@@ -144,6 +165,14 @@ export class DefaultStore<T extends object> implements Store<T> {
   }
 }
 
+
+/**
+ * Convenience factory for creating a `Store` using the default implementation.
+ *
+ * @typeParam T - The shape of the state object.
+ * @param initial - Initial state.
+ * @returns A new store instance.
+ */
 export function createStore<T extends object>(initial: T): Store<T> {
   return new DefaultStore(initial);
 }
