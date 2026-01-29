@@ -1,5 +1,5 @@
-import {DerivedState} from "./derived";
-import {Store} from "./store";
+import { DerivedState } from "./derived";
+import { Store } from "./store";
 
 const internalListenersKey = Symbol("internalListeners");
 const listenersKey = Symbol("listeners");
@@ -113,9 +113,9 @@ export class DefaultStore<T extends object> implements Store<T> {
    * @param transformer - Function producing the new state from the current state.
    */
   public transform(transformer: (state: Readonly<T>) => Readonly<T>) {
-    const snapshot = { ...this[proxyKey] } as T;
+    const snapshot = Object.assign({}, this[snapshotKey]) as T;
     const transformed = transformer(snapshot);
-    updateStore(snapshot,this, snapshot, transformed);
+    updateStore(snapshot, this, snapshot, transformed);
     notifySubscribers(this);
   }
 
@@ -164,7 +164,6 @@ export class DefaultStore<T extends object> implements Store<T> {
     };
   }
 }
-
 
 /**
  * Convenience factory for creating a `Store` using the default implementation.
