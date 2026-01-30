@@ -1,12 +1,26 @@
-import { DerivedState } from "./derived";
+import { DerivedState } from "./derived-state";
 import { Store } from "./store";
 
 const internalListenersKey = Symbol("internalListeners");
 const listenersKey = Symbol("listeners");
-const readonlyProxyKey = Symbol("readonlyProxy");
-const proxyKey = Symbol("proxy");
 const snapshotKey = Symbol("snapshot");
 const deriveStateInstancesKey = Symbol("deriveStateInstances");
+
+function equalsShallow(
+  obj1: Record<string, unknown> | null | undefined,
+  obj2: Record<string, unknown> | null | undefined,
+) {
+  if (!obj1) return obj1 === obj2;
+  if (!obj2) return false;
+  if (Object.keys(obj1).length !== Object.keys(obj2).length) {
+    return false;
+  }
+
+  return Object.keys(obj1).reduce(
+    (flag, key) => flag && obj1[key] === obj2[key],
+    true,
+  );
+}
 
 function notifySubscribers(instance: any) {
   instance[internalListenersKey].forEach((listener: () => void) => listener());
@@ -23,32 +37,37 @@ function readOnlySetter(): boolean {
   throw new Error("Readonly property cannot be modified");
 }
 
-function updateStore(
-  target: any,
-  instance: any,
-  snapshot: object,
-  source?: object,
-) {
+function updateStore(instance: any, source?: object) {
+  const current = instance[snapshotKey];
   instance[snapshotKey] = source
-    ? Object.assign({}, snapshot, source)
-    : Object.assign({}, snapshot);
-  instance[proxyKey] = new Proxy(target, {
+    ? Object.assign({}, current, source)
+    : Object.assign({}, current);
+
+  if (!equalsShallow(current, instance[snapshotKey])) {
+    notifySubscribers(instance);
+  }
+}
+
+function createSetter(instance: any) {
+  return (_: any, property: string, value: any) => {
+    updateStore(instance, { [property]: value });
+
+    return true;
+  };
+}
+
+function createProxy(instance: any, target: any) {
+  return new Proxy(target, {
     set: createSetter(instance),
-    get: createGetter(instance),
-  });
-  instance[readonlyProxyKey] = new Proxy(target, {
-    set: readOnlySetter,
     get: createGetter(instance),
   });
 }
 
-function createSetter(instance: any) {
-  return (target: any, property: string, value: any) => {
-    updateStore(target, instance, instance[snapshotKey], { [property]: value });
-    notifySubscribers(instance);
-
-    return true;
-  };
+function createReadOnlyProxy(instance: any, target: any) {
+  return new Proxy(target, {
+    get: createGetter(instance),
+    set: readOnlySetter,
+  });
 }
 
 /**
@@ -71,8 +90,6 @@ export class DefaultStore<T extends object> implements Store<T> {
   [listenersKey]: Set<() => void> = new Set();
   // @ts-ignore
   [snapshotKey]: T;
-  [proxyKey]: any;
-  [readonlyProxyKey]: any;
 
   /**
    * Creates a new store initialized with the given state object.
@@ -80,7 +97,7 @@ export class DefaultStore<T extends object> implements Store<T> {
    * @param initial - Initial state.
    */
   constructor(initial: T) {
-    updateStore(initial, this, initial);
+    updateStore(this, initial);
   }
 
   /**
@@ -92,7 +109,7 @@ export class DefaultStore<T extends object> implements Store<T> {
    */
   derive<U>(transformer: (state: Readonly<T>) => U): DerivedState<T, U> {
     const derived = new DerivedState(
-      transformer(this[snapshotKey]),
+      transformer(this.readSnapshot()),
       this.subscribeInternal.bind(this),
       this.getSnapshot.bind(this),
       transformer,
@@ -113,10 +130,9 @@ export class DefaultStore<T extends object> implements Store<T> {
    * @param transformer - Function producing the new state from the current state.
    */
   public transform(transformer: (state: Readonly<T>) => Readonly<T>) {
-    const snapshot = Object.assign({}, this[snapshotKey]) as T;
+    const snapshot = this.readSnapshot();
     const transformed = transformer(snapshot);
-    updateStore(snapshot, this, snapshot, transformed);
-    notifySubscribers(this);
+    updateStore(this, transformed);
   }
 
   /**
@@ -139,7 +155,7 @@ export class DefaultStore<T extends object> implements Store<T> {
    * @returns Readonly state proxy.
    */
   public getSnapshot() {
-    return this[readonlyProxyKey] as Readonly<T>;
+    return this.readSnapshot() as Readonly<T>;
   }
 
   /**
@@ -153,7 +169,15 @@ export class DefaultStore<T extends object> implements Store<T> {
    * @returns Mutable state proxy.
    */
   public getProxy(): T {
-    return this[proxyKey] as T;
+    return createProxy(this, this.readSnapshot()) as T;
+  }
+
+  public getReadonlyProxy(): Readonly<T> {
+    return createReadOnlyProxy(this, this.readSnapshot());
+  }
+
+  public update(state: T) {
+    updateStore(this, state);
   }
 
   private subscribeInternal(callback: () => void): () => void {
@@ -162,6 +186,10 @@ export class DefaultStore<T extends object> implements Store<T> {
     return () => {
       this[internalListenersKey].delete(callback);
     };
+  }
+
+  private readSnapshot() {
+    return this[snapshotKey];
   }
 }
 

@@ -1,6 +1,6 @@
 {
   "name": "free-state",
-  "version": "0.1.0-alpha0.1.0",
+  "version": "0.1.0-alpha0.2.0",
   "description": "A simple lightweight state management library",
   "main": "./dist/index.mjs",
   "types": "./dist/index.d.mts",
