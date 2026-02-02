@@ -1,6 +1,7 @@
 {
   "scripts": {
     "build": "tsdown",
+    "publish:local": "pnpm publish -r --registry http://localhost:4873 --tag alpha --no-git-checks",
     "dev": "tsdown --watch",
     "test": "vitest --watch"
   },
