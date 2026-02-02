@@ -1,4 +1,9 @@
 const observersSymbol = Symbol("observer");
+const invocationHandlerSymbol = Symbol("invocationHandler");
+
+export type EventObserver<E> = E extends readonly (infer Args)[]
+  ? (...args: Args[]) => void | Promise<void>
+  : (event: E) => void | Promise<void>;
 
 /**
  * Callback signature for subscribers to an event emission.
@@ -13,34 +18,23 @@ export type EventCallback<E> = (event: E) => void | Promise<void>;
  * @param args Arguments used to construct the event payload.
  * @returns The constructed event payload.
  */
-export type EventTarget<E> = (...args: any[]) => E;
+export type EventTarget<E> = (...args: unknown[]) => E;
 
 /**
  * Subject that manages observers for a typed event and dispatches emissions.
  * @template Params Tuple of argument types the event producer accepts.
  * @template E Event payload type.
  */
-export class EventSubject<Params extends readonly any[], E> {
-  [observersSymbol]: Set<(event: E) => void | Promise<void>> = new Set();
-  private readonly _key: any;
-  private readonly _eventMethod: (...args: Params) => E;
-  private _state?: E;
+export class EventSubject<E extends readonly any[]> {
+  [observersSymbol]: Set<EventObserver<E>> = new Set();
+  [invocationHandlerSymbol]: () => E;
 
   /**
    * Create a new event subject.
-   * @param key Identifier for this subject (useful for registries).
-   * @param target Function that transforms args into an event payload.
+   * @
    */
-  constructor(key: any, target: (...args: Params) => E) {
-    this._key = key;
-    this._eventMethod = target;
-  }
-
-  /**
-   * Get the identifier associated with this subject.
-   */
-  public get key() {
-    return this._key;
+  constructor(handler: () => E) {
+    this[invocationHandlerSymbol] = handler;
   }
 
   /**
@@ -56,7 +50,7 @@ export class EventSubject<Params extends readonly any[], E> {
    * Subscribe an observer to future emissions.
    * @param observer Handler invoked with each emitted payload.
    */
-  public attach(observer: (event: E) => void | Promise<void>) {
+  public attach(observer: EventObserver<E>) {
     this[observersSymbol].add(observer);
   }
 
@@ -64,7 +58,7 @@ export class EventSubject<Params extends readonly any[], E> {
    * Unsubscribe a previously attached observer.
    * @param observer Handler to remove.
    */
-  public detach(observer: (event: E) => void | Promise<void>) {
+  public detach(observer: EventObserver<E>) {
     this[observersSymbol].delete(observer);
   }
 
@@ -77,10 +71,8 @@ export class EventSubject<Params extends readonly any[], E> {
 
 /**
  * Convenience factory to create an `EventSubject` from a producer function.
- * @template F Event producer function type.
- * @param subject Function that produces an event payload from its arguments.
  * @returns A new `EventSubject` bound to the provided producer.
  */
-export function createEvent<F extends (...args: any[]) => any>(subject: F) {
-  return new EventSubject<Parameters<F>, ReturnType<F>>("", subject);
+export function createEvent<E extends readonly unknown[]>(handler: () => E) {
+  return new EventSubject<E>(handler);
 }

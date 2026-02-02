@@ -1,4 +1,5 @@
 import type { DerivedState } from "free-state";
+import {EventSubject} from "./event";
 
 export type AllowedStoreState = object | null | undefined;
 
@@ -24,6 +25,8 @@ export interface Store<T extends AllowedStoreState> {
    * @returns A cleanup function that unsubscribes the callback.
    */
   subscribe(callback: () => void): () => void;
+
+  createEvent(predicate?: (state: T, previousState?: T | undefined) => boolean): EventSubject<readonly [T]>;
 
   /**
    * Returns a mutable proxy object that represents the current state.
@@ -52,7 +55,6 @@ export interface Store<T extends AllowedStoreState> {
    * @returns A snapshot of the current state.
    */
   getSnapshot(): Readonly<T>;
-
 
   /**
    * Applies a transformation to the current state in a single update.

@@ -1,8 +1,10 @@
-import { DerivedState } from "free-state";
-import type { Store, AllowedStoreState } from "free-state";
+import type {AllowedStoreState, Store} from "free-state";
+import {DerivedState} from "free-state";
+import {EventSubject} from "./event";
 
 const internalListenersKey = Symbol("internalListeners");
 const listenersKey = Symbol("listeners");
+const priorSnapshotKey = Symbol("priorSnapshot");
 const snapshotKey = Symbol("snapshot");
 const deriveStateInstancesKey = Symbol("deriveStateInstances");
 
@@ -37,9 +39,11 @@ function readOnlySetter(): boolean {
   throw new Error("Readonly property cannot be modified");
 }
 
-
 function updateStore(instance: any, source?: AllowedStoreState) {
-  const current = instance[snapshotKey] ? Object.assign({}, instance[snapshotKey]) : instance[snapshotKey];
+  const current = instance[snapshotKey]
+    ? Object.assign({}, instance[snapshotKey])
+    : instance[snapshotKey];
+  instance[priorSnapshotKey] = current;
   const updated = (() => {
     switch (typeof source) {
       case "undefined": {
@@ -52,16 +56,14 @@ function updateStore(instance: any, source?: AllowedStoreState) {
         }
 
         const updatedObj = Object.assign({}, current, source);
-        if(Object.getOwnPropertyNames(updatedObj).length === 0){
-          return { };
+        if (Object.getOwnPropertyNames(updatedObj).length === 0) {
+          return {};
         }
 
         return updatedObj;
       }
       default:
-        throw Error(
-            "Only object types are permitted to be state values."
-        );
+        throw Error("Only object types are permitted to be state values.");
     }
   })();
 
@@ -132,6 +134,7 @@ export class DefaultStore<T extends AllowedStoreState> implements Store<T> {
   [listenersKey]: Set<() => void> = new Set();
   // @ts-ignore
   [snapshotKey]: T;
+  [priorSnapshotKey]: T | undefined;
 
   /**
    * Creates a new store initialized with the given state object.
@@ -149,7 +152,7 @@ export class DefaultStore<T extends AllowedStoreState> implements Store<T> {
    * @param transformer - Function to compute the derived value from the current snapshot.
    * @returns A derived state instance that stays in sync with this store.
    */
-  derive<U>(transformer: (state: Readonly<T>) => U): DerivedState<T, U> {
+  public derive<U>(transformer: (state: Readonly<T>) => U): DerivedState<T, U> {
     const derived = new DerivedState<T, U>(
       transformer(this.readSnapshot()),
       this.subscribeInternal.bind(this),
@@ -159,6 +162,23 @@ export class DefaultStore<T extends AllowedStoreState> implements Store<T> {
     this[deriveStateInstancesKey].add(derived);
 
     return derived;
+  }
+
+  public createEvent(predicate?: (state: T, previousState?: T | undefined) => boolean): EventSubject<readonly [T]> {
+    const thisObj = this;
+    const handler = () => [thisObj.getSnapshot()] as const;
+
+    const subject = new EventSubject<readonly [T]>(handler);
+    const subscribeCallback = () => {
+      const snapshot = thisObj.getSnapshot();
+      if (!predicate?.(snapshot, thisObj[priorSnapshotKey])) {
+        return;
+      }
+      subject.invoke().then();
+    };
+    this.subscribe(subscribeCallback);
+
+    return subject;
   }
 
   /**
