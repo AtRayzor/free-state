@@ -11,7 +11,7 @@ export default defineConfig({
           enabled: true,
           headless: false,
           provider: playwright(),
-          instances: [{ browser: "chromium" }],
+          instances: [{ browser: "chromium",  }],
       },
     include: ["tests/**/*.test.ts"],
     root: resolve(__dirname),

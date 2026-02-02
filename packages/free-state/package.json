@@ -1,12 +1,22 @@
 {
   "name": "free-state",
-  "version": "0.1.0-alpha0.2.0",
+  "version": "0.1.0-alpha0.2.10",
   "description": "A simple lightweight state management library",
   "main": "./dist/index.mjs",
   "types": "./dist/index.d.mts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "tsdown",
+    "publish:local": "pnpm publish --registry http://localhost:4873 --tag alpha --no-git-checks",
+    "test": "vitest --watch --no-cache"
   },
+  "files": [
+    "package.json",
+    "dist/*.mjs",
+    "dist/*.d.mts",
+    "**/*.ts",
+    "!**/*.test.ts",
+    "!**/*.config.ts"
+  ],
   "keywords": [],
   "author": "",
   "license": "ISC",
