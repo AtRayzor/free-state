@@ -1,4 +1,6 @@
-import { DerivedState } from "./derived-state";
+import type { DerivedState } from "free-state";
+
+export type AllowedStoreState = object | null | undefined;
 
 /**
  * A reactive state container.
@@ -14,7 +16,7 @@ import { DerivedState } from "./derived-state";
  *
  * @typeParam T - The shape of the state object held by the store.
  */
-export interface Store<T extends object> {
+export interface Store<T extends AllowedStoreState> {
   /**
    * Subscribes a callback to be invoked any time the store updates.
    *

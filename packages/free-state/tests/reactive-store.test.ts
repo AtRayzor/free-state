@@ -1,7 +1,28 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createStore } from "../lib/reactive-store";
+import { createStore } from "free-state";
 
 const listenerCallback = vi.fn();
+
+describe("createStore", () => {
+  it("should return undefined initial state is undefined.", () => {
+    const testStore = createStore<{ value: number }>();
+    const snapshot = testStore.getSnapshot();
+    expect(snapshot).toStrictEqual(undefined);
+  });
+
+  it("should return null when initial state is null.", () => {
+    const testStore = createStore<{ value: number } | null>(null);
+    const snapshot = testStore.getSnapshot();
+    expect(snapshot).toStrictEqual(null);
+  });
+
+  it("should return empty object when initial state is empty object", () => {
+
+    const testStore = createStore<{ value?: number }>({});
+    const snapshot = testStore.getSnapshot();
+    expect(snapshot).toStrictEqual({});
+  })
+});
 
 describe("Store.subscribe", () => {
   afterEach(() => {
@@ -65,6 +86,20 @@ describe("getProxy", () => {
 
     expect(proxy.value).toBe(5);
     expect(snapshot.value).toBe(5);
+  });
+
+  it("should return undefined when the snapshot is undefined", () => {
+    const testStore = createStore<{ value: number }>();
+    const proxy = testStore.getProxy();
+
+    expect(proxy).toBeUndefined();
+  });
+
+  it("should return null when the snapshot is null", () => {
+    const testStore = createStore<{ value: number } | null>(null);
+    const proxy = testStore.getProxy();
+
+    expect(proxy).toBeNull();
   });
 });
 
@@ -177,7 +212,6 @@ describe("update", () => {
 
     expect(listenerCallback).toHaveBeenCalledTimes(1);
   });
-
 
   it("should notify subscribers when objects are equal (shallow)", () => {
     const testStore = createStore({

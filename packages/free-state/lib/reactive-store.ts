@@ -1,5 +1,5 @@
-import { DerivedState } from "./derived-state";
-import { Store } from "./store";
+import { DerivedState } from "free-state";
+import type { Store, AllowedStoreState } from "free-state";
 
 const internalListenersKey = Symbol("internalListeners");
 const listenersKey = Symbol("listeners");
@@ -37,13 +37,36 @@ function readOnlySetter(): boolean {
   throw new Error("Readonly property cannot be modified");
 }
 
-function updateStore(instance: any, source?: object) {
-  const current = instance[snapshotKey];
-  instance[snapshotKey] = source
-    ? Object.assign({}, current, source)
-    : Object.assign({}, current);
 
-  if (!equalsShallow(current, instance[snapshotKey])) {
+function updateStore(instance: any, source?: AllowedStoreState) {
+  const current = instance[snapshotKey] ? Object.assign({}, instance[snapshotKey]) : instance[snapshotKey];
+  const updated = (() => {
+    switch (typeof source) {
+      case "undefined": {
+        return undefined;
+      }
+      case "object": {
+        if (!source) {
+          instance[snapshotKey] = null;
+          return null;
+        }
+
+        const updatedObj = Object.assign({}, current, source);
+        if(Object.getOwnPropertyNames(updatedObj).length === 0){
+          return { };
+        }
+
+        return updatedObj;
+      }
+      default:
+        throw Error(
+            "Only object types are permitted to be state values."
+        );
+    }
+  })();
+
+  if (!equalsShallow(current, updated)) {
+    instance[snapshotKey] = updated;
     notifySubscribers(instance);
   }
 }
@@ -56,18 +79,37 @@ function createSetter(instance: any) {
   };
 }
 
-function createProxy(instance: any, target: any) {
-  return new Proxy(target, {
-    set: createSetter(instance),
-    get: createGetter(instance),
-  });
-}
+function createProxy(
+  instance: any,
+  target: AllowedStoreState,
+  readonly?: boolean,
+) {
+  switch (typeof target) {
+    case "undefined": {
+      return undefined;
+    }
+    case "object": {
+      if (!target) {
+        return null;
+      }
 
-function createReadOnlyProxy(instance: any, target: any) {
-  return new Proxy(target, {
-    get: createGetter(instance),
-    set: readOnlySetter,
-  });
+      if (readonly) {
+        return new Proxy(target, {
+          get: createGetter(instance),
+          set: readOnlySetter,
+        });
+      }
+
+      return new Proxy(target, {
+        set: createSetter(instance),
+        get: createGetter(instance),
+      });
+    }
+    default:
+      throw Error(
+        "Invalid state type. Only objects and undefined types are permitted.",
+      );
+  }
 }
 
 /**
@@ -84,7 +126,7 @@ function createReadOnlyProxy(instance: any, target: any) {
  *
  * @typeParam T - The shape of the state object.
  */
-export class DefaultStore<T extends object> implements Store<T> {
+export class DefaultStore<T extends AllowedStoreState> implements Store<T> {
   [deriveStateInstancesKey]: Set<DerivedState<T, any>> = new Set();
   [internalListenersKey]: Set<() => void> = new Set();
   [listenersKey]: Set<() => void> = new Set();
@@ -108,7 +150,7 @@ export class DefaultStore<T extends object> implements Store<T> {
    * @returns A derived state instance that stays in sync with this store.
    */
   derive<U>(transformer: (state: Readonly<T>) => U): DerivedState<T, U> {
-    const derived = new DerivedState(
+    const derived = new DerivedState<T, U>(
       transformer(this.readSnapshot()),
       this.subscribeInternal.bind(this),
       this.getSnapshot.bind(this),
@@ -173,7 +215,7 @@ export class DefaultStore<T extends object> implements Store<T> {
   }
 
   public getReadonlyProxy(): Readonly<T> {
-    return createReadOnlyProxy(this, this.readSnapshot());
+    return createProxy(this, this.readSnapshot(), true);
   }
 
   public update(state: T) {
@@ -193,6 +235,10 @@ export class DefaultStore<T extends object> implements Store<T> {
   }
 }
 
+export function createStore<T extends object | null>(initial: T): Store<T>;
+export function createStore<T extends object>(initial: T): Store<T>;
+export function createStore<T extends object>(): Store<T | undefined>;
+
 /**
  * Convenience factory for creating a `Store` using the default implementation.
  *
@@ -200,6 +246,6 @@ export class DefaultStore<T extends object> implements Store<T> {
  * @param initial - Initial state.
  * @returns A new store instance.
  */
-export function createStore<T extends object>(initial: T): Store<T> {
+export function createStore<T extends AllowedStoreState>(initial?: T) {
   return new DefaultStore(initial);
 }
