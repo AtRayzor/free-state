@@ -12,7 +12,7 @@ export default defineConfig({
       provider: playwright(),
       instances: [{ browser: "chromium" }],
     },
-    include: ["tests/**/*.test.ts"],
+    include: ["**/*.test.ts", "**/*.test.tsx"],
     root: resolve(__dirname),
   },
   plugins: [tsConfigPaths()],
