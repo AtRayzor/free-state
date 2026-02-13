@@ -1,6 +1,6 @@
 {
   "name": "@free-state/react",
-  "version": "0.1.0-alpha2.1.2",
+  "version": "0.1.0-alpha2.1.3",
   "description": "",
   "main": "./dist/index.mjs",
   "types": "./dist/index.d.mts",
