@@ -39,11 +39,10 @@ export class EventSubject<E extends readonly any[]> {
 
   /**
    * Invoke the event producer, store the latest payload, and notify observers.
-   * @param args Arguments passed to the event producer.
    */
-  public async invoke(...args: Params): Promise<void> {
-    this._state = this._eventMethod(...args);
-    this.notify();
+  public async invoke(): Promise<void> {
+    const event = this[invocationHandlerSymbol]();
+    await this.notify(...event);
   }
 
   /**
@@ -62,10 +61,9 @@ export class EventSubject<E extends readonly any[]> {
     this[observersSymbol].delete(observer);
   }
 
-  private notify() {
-    const state = this._state;
-    if (state === undefined) return;
-    this[observersSymbol].forEach((observer) => observer(state));
+  private async notify(...args: E) {
+   const promises = [...this[observersSymbol]].map((observer) => observer(...args));
+   await Promise.all(promises);
   }
 }
 
